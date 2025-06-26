@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +32,13 @@ public class DataFileReader {
         return records;
     }
 
+    // Unpacks the record from the file
     private Record readRecordFromBuffer(ByteBuffer buffer) {
         long id = buffer.getLong();
 
-        byte[] nameBytes = new byte[Record.RECORD_SIZE];
+        byte[] nameBytes = new byte[Record.NAME_SIZE];
         buffer.get(nameBytes);
-        String name = new String(nameBytes, StandardCharsets.UTF_8);
+        String name = new String(nameBytes, Charset.forName("ISO-8859-7")).trim();
 
         double[] coordinates = new double[Record.DIMENSIONS];
         for (int i = 0; i < Record.DIMENSIONS; i++) {
@@ -46,6 +48,7 @@ public class DataFileReader {
         return new Record(id, name, coordinates);
     }
 
+    // Reads a specific record from the datafile
     public Record readRecord(int blockId, int slot) throws IOException {
         long offset = (long) blockId * BLOCK_SIZE + (long) slot * Record.RECORD_SIZE;
         raf.seek(offset);
@@ -55,7 +58,12 @@ public class DataFileReader {
 
         ByteBuffer buffer = ByteBuffer.wrap(recordData);
 
-        return  readRecordFromBuffer(buffer);
+        return readRecordFromBuffer(buffer);
+    }
+
+    public int getTotalBlocks() throws IOException {
+        long fileSize = raf.length(); // σε bytes
+        return (int) Math.ceil((double) fileSize / DataFileReader.BLOCK_SIZE);
     }
 
     public void close() throws IOException {

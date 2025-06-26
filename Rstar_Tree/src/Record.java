@@ -13,4 +13,9 @@ public class Record {
         this.name = name;
         this.coordinates = coordinates;
     }
+
+    @Override
+    public String toString() {
+        return "Record{id=" + id + ", name='" + name + "', coordinates=(" + coordinates[0] + ", " + coordinates[1] + ")}";
+    }
 }
