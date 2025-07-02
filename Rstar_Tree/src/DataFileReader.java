@@ -65,6 +65,12 @@ public class DataFileReader {
         return (int) Math.ceil((double) fileSize / DataFileReader.BLOCK_SIZE);
     }
 
+    public static Record getRecord(RecordID recordID) throws IOException {
+        DataFileReader reader = new DataFileReader("datafile.bin");
+
+        return reader.readRecord(recordID.blockID, recordID.slotID);
+    }
+
     public void close() throws IOException {
         raf.close();
     }

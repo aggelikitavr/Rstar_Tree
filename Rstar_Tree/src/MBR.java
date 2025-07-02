@@ -1,6 +1,6 @@
 public class MBR {
-    double[] min;
-    double[] max;
+    double[] min; // Lat
+    double[] max; // Lon
 
     public MBR(double[] min, double[] max) {
         if (min.length != max.length) {

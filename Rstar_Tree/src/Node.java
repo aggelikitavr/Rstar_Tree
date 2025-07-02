@@ -4,7 +4,6 @@ import java.util.List;
 
 public class Node {
     boolean isLeaf;                  
-//    List<Record> records;
     List<Node> children;
     MBR nodeMBR;
     Node parent;
@@ -16,7 +15,6 @@ public class Node {
     public Node(boolean isLeaf) {
         this.isLeaf = isLeaf;
         if (isLeaf) {
-            //records = new ArrayList<>();
             recordIDs = new ArrayList<>();
         } else {
             children = new ArrayList<>();
@@ -27,11 +25,11 @@ public class Node {
         this.minRecord = (int) Math.ceil(0.4*maxRecord);
     }
 
-    public boolean isFull(int maxEntries) {
+    public boolean isFull() {
         if (isLeaf) {
-            return recordIDs.size() >= maxEntries;
+            return recordIDs.size() >= maxRecord;
         } else {
-            return children.size() >= maxEntries;
+            return children.size() >= maxRecord;
         }
     }
 
@@ -42,12 +40,12 @@ public class Node {
     public void updateMBR() throws IOException {
         if (isLeaf && recordIDs != null && !recordIDs.isEmpty()) {
             RecordID recordID = recordIDs.get(0);
-            Record record = getRecord(recordID);
+            Record record = DataFileReader.getRecord(recordID);
 
             MBR mbr = new MBR(record.coordinates, record.coordinates);
             for (RecordID id : recordIDs) {
-                Record r = getRecord(id);
-                mbr = mbr.expandToInclude(new MBR(r.coordinates, r.coordinates));
+                Record r = DataFileReader.getRecord(id);
+                mbr = mbr.expandToInclude(r.coordinates);
             }
             nodeMBR = mbr;
         } else if (!isLeaf && children != null && !children.isEmpty()) {
@@ -59,10 +57,21 @@ public class Node {
         }
     }
 
-    private Record getRecord(RecordID recordID) throws IOException {
-        DataFileReader reader = new DataFileReader("datafile.bin");
+    public void addMBR(MBR mbr) {
+        nodeMBR = nodeMBR.expandToInclude(mbr);
+    }
 
-        return reader.readRecord(recordID.blockID, recordID.slotID);
+    public double computeOverlap(double[] point) {
+        MBR mbr = new MBR(point, point);
+        return nodeMBR.overlap(mbr);
+    }
+
+
+    public double computeExpansion(double[] point) {
+        double originalArea = nodeMBR.area();
+        MBR expanded = nodeMBR.expandToInclude(point);
+        double expandedArea = expanded.area();
+        return expandedArea - originalArea;
     }
 }
 
