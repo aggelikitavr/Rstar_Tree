@@ -71,18 +71,18 @@ public class MBR {
     }
 
     public MBR expandToInclude(double[] coordinates) {
-    if (coordinates.length != min.length) {
-        throw new IllegalArgumentException("Point must have same dimension as MBR.");
-    }
-    double[] newMin = min.clone();
-    double[] newMax = max.clone();
+        if (coordinates.length != min.length) {
+            throw new IllegalArgumentException("Point must have same dimension as MBR.");
+        }
+        double[] newMin = min.clone();
+        double[] newMax = max.clone();
 
-    for (int i = 0; i < min.length; i++) {
-        if (coordinates[i] < newMin[i]) newMin[i] = coordinates[i];
-        if (coordinates[i] > newMax[i]) newMax[i] = coordinates[i];
-    }
+        for (int i = 0; i < min.length; i++) {
+            if (coordinates[i] < newMin[i]) newMin[i] = coordinates[i];
+            if (coordinates[i] > newMax[i]) newMax[i] = coordinates[i];
+        }
 
-    return new MBR(newMin, newMax);
+        return new MBR(newMin, newMax);
     }
 
     public MBR expandToInclude(Record record) {
