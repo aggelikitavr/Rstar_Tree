@@ -16,30 +16,30 @@ public class RstarTree {
         this.size = 0;
     }
 
-    public void insert(RecordID recordID){
-        
+    public void insert(RecordID recordID) throws IOException {
+        Record record = DataFileReader.getRecord(recordID);
+        MBR mbr = new MBR(record.coordinates, record.coordinates);
+        insert(root, mbr, recordID);
     }
 
-    public void insert(Node node, RecordID recordID) throws IOException {
-        Node n = chooseLeaf(node, recordID);
+    public void insert(Node node, MBR mbr, RecordID recordID) throws IOException {
+        Node n = chooseLeaf(node, mbr);
 
         if (!n.isFull()) {
-            Record record = DataFileReader.getRecord(recordID);
-            n.addMBR(new MBR(record.coordinates, record.coordinates));
+            n.addMBR(mbr);
             n.recordIDs.add(recordID);
         } else {
             //split();
         }
     }
 
-    private Node chooseLeaf(Node node, RecordID recordID) throws IOException {
+    private Node chooseLeaf(Node node, MBR mbr) throws IOException {
         if (!node.isLeaf) {
             // Find all the children with the least overlap
             List<Double> overlaps = new ArrayList<>();
             for (int i = 0; i < node.children.size(); i++) {
                 Node f = node.children.get(i);
-                Record record = DataFileReader.getRecord(recordID);
-                double overlap = f.computeOverlap(record.coordinates);
+                double overlap = f.computeOverlap(mbr);
                 overlaps.add(overlap);
             }
 
@@ -57,8 +57,7 @@ public class RstarTree {
                 List<Double> expansions = new ArrayList<>();
                 for (int j = 0; j < minOverlapIndexes.size(); j++) {
                     Node f = node.children.get(minOverlapIndexes.get(j));
-                    Record record = DataFileReader.getRecord(recordID);
-                    double expansion = f.computeExpansion(record.coordinates);
+                    double expansion = f.computeExpansion(mbr);
                     expansions.add(expansion);
                 }
 
@@ -83,12 +82,12 @@ public class RstarTree {
                             minAreaIndex = j;
                         }
                     }
-                    chooseLeaf(node.children.get(indexes.get(minAreaIndex)), recordID);
+                    chooseLeaf(node.children.get(indexes.get(minAreaIndex)), mbr);
                 } else {
-                    chooseLeaf(node.children.get(indexes.get(0)), recordID);
+                    chooseLeaf(node.children.get(indexes.getFirst()), mbr);
                 }
             } else {
-                chooseLeaf(node.children.get(minOverlapIndexes.get(0)), recordID);
+                chooseLeaf(node.children.get(minOverlapIndexes.getFirst()), mbr);
             }
         }
 

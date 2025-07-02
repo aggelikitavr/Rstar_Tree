@@ -61,15 +61,14 @@ public class Node {
         nodeMBR = nodeMBR.expandToInclude(mbr);
     }
 
-    public double computeOverlap(double[] point) {
-        MBR mbr = new MBR(point, point);
+    public double computeOverlap(MBR mbr) {
         return nodeMBR.overlap(mbr);
     }
 
 
-    public double computeExpansion(double[] point) {
+    public double computeExpansion(MBR mbr) {
         double originalArea = nodeMBR.area();
-        MBR expanded = nodeMBR.expandToInclude(point);
+        MBR expanded = nodeMBR.expandToInclude(mbr);
         double expandedArea = expanded.area();
         return expandedArea - originalArea;
     }
