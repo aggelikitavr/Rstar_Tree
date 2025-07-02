@@ -89,6 +89,13 @@ public class MBR {
         return expandToInclude(record.coordinates);
     }
 
+    public double[] getCenter () {
+        double[] center = new double[min.length];
+        for (int i = 0; i < min.length; i++) {
+            center[i] = (max[i] - min[i])/2;
+        }
+        return center;
+    }
 
     @Override
     public String toString() {

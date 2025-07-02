@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class RstarTree {
@@ -8,6 +9,7 @@ public class RstarTree {
 
     int height;
     int size;
+    private static final double p = 0.3;
 
     public RstarTree(){
         this.root = new Node(true);
@@ -29,7 +31,14 @@ public class RstarTree {
             n.addMBR(mbr);
             n.recordIDs.add(recordID);
         } else {
-            //split();
+            if (node != root && !node.reInserted) {
+                reInsert(node, mbr, recordID);
+                node.reInserted = true;
+            } else {
+                //split
+            }
+
+            node.reInserted = false;
         }
     }
 
@@ -94,4 +103,46 @@ public class RstarTree {
         return node;
     }
 
+    private void reInsert(Node node, MBR mbr, RecordID recordID) throws IOException {
+        node.addMBR(mbr);
+        node.recordIDs.add(recordID);
+
+        double[] center = node.nodeMBR.getCenter();
+
+        List<Double> distances = new ArrayList<>();
+        List<Integer> indexes = new ArrayList<>();
+        for (int i = 0; i < node.recordIDs.size(); i++) {
+            RecordID currentRecord = node.recordIDs.get(i);
+            double[] currentCoordinates = DataFileReader.getRecord(currentRecord).coordinates;
+
+            distances.add(calculateDistance(center, currentCoordinates));
+            indexes.add(i);
+        }
+
+        distances.sort(Comparator.reverseOrder());
+        indexes.sort((i2, i1) -> Double.compare(distances.get(i2), distances.get(i1)));
+        int p_entries = (int) Math.ceil(distances.size() * p);
+
+        List<RecordID> recordIDs = new ArrayList<>();
+        for (int i = 0; i < p_entries; i++) {
+            recordIDs.add(node.removeRecord(indexes.get(i)));
+        }
+
+        for (int i = 0; i < p_entries; i++) {
+            insert(recordIDs.get(i));
+        }
+    }
+
+    private static double calculateDistance(double[] center, double[] point) {
+        if (center.length != point.length) {
+            throw new IllegalArgumentException("Points must have the same dimension");
+        }
+
+        double sum = 0.0;
+        for (int i = 0; i < center.length; i++) {
+            double diff = center[i] - point[i];
+            sum += diff * diff;
+        }
+        return Math.sqrt(sum);
+    }
 }

@@ -8,6 +8,7 @@ public class Node {
     MBR nodeMBR;
     Node parent;
     List<RecordID> recordIDs; // Only if isLeaf = True
+    boolean reInserted;
 
     public static final int maxRecord = 50;
     int minRecord;
@@ -23,6 +24,8 @@ public class Node {
         parent = null;
 
         this.minRecord = (int) Math.ceil(0.4*maxRecord);
+
+        reInserted = false;
     }
 
     public boolean isFull() {
@@ -59,6 +62,13 @@ public class Node {
 
     public void addMBR(MBR mbr) {
         nodeMBR = nodeMBR.expandToInclude(mbr);
+    }
+
+    public RecordID removeRecord(int index) throws IOException {
+        RecordID recordID = recordIDs.get(index);
+        recordIDs.remove(index);
+        updateMBR();
+        return recordID;
     }
 
     public double computeOverlap(MBR mbr) {
