@@ -145,4 +145,92 @@ public class RstarTree {
         }
         return Math.sqrt(sum);
     }
+
+    public void delete(RecordID recordID) throws IOException {
+        Record record = DataFileReader.getRecord(recordID);
+        Node leaf = findLeaf(root, record);                 
+
+        if (leaf != null) {
+            boolean removed = leaf.recordIDs.remove(recordID);
+
+            if (removed) {
+                leaf.updateMBR();
+                condenseTree(leaf);
+            } else {
+                System.out.println("RecordID not found in leaf.");
+            }
+        } else {
+            System.out.println("Record not found in the tree.");
+        }
+    }
+
+
+    private Node findLeaf(Node node, Record record) throws IOException {
+        if (!node.isLeaf) {
+            for (Node child : node.children) {
+                if (child.nodeMBR.contains(record.coordinates)) {
+                    Node leaf = findLeaf(child, record);
+                    if (leaf != null) return leaf;
+                }
+            }
+        } else {
+            for (RecordID id : node.recordIDs) {
+                    Record r = DataFileReader.getRecord(id);
+                    if (r.id == record.id) {
+                        return node;
+                    }
+            }
+        }
+        return null;
+    }
+
+    private void condenseTree(Node leaf) throws IOException {
+        Node N = leaf;
+        List<Node> Q = new ArrayList<>();
+
+        while (N != root) {
+            Node P = N.parent;
+
+            if (N.isLeaf) {
+                if (N.recordIDs.size() < N.minRecord) {
+                    P.children.remove(N);
+                    Q.add(N);
+                } else {
+                    P.updateMBR();
+                }
+            } else {
+                if (N.children.size() < N.minRecord) {
+                    P.children.remove(N);
+                    Q.add(N);
+                } else {
+                    P.updateMBR();
+                }
+            }
+            N = P;
+        }
+
+        if (!root.isLeaf && root.children.size() == 1) {
+            root = root.children.get(0);
+            root.parent = null;
+        }
+
+        for (Node eliminatedNode : Q) {
+            reInsertSubtree(eliminatedNode);
+        }
+
+        root.updateMBR();
+    }
+
+    private void reInsertSubtree(Node node) throws IOException {
+        if (node.isLeaf) {
+            for (RecordID recordID : node.recordIDs) {
+                insert(recordID);
+            }
+        } else {
+            for (Node child : node.children) {
+                reInsertSubtree(child);
+            }
+        }
+    }
+
 }
