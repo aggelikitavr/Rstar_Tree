@@ -164,7 +164,6 @@ public class RstarTree {
         }
     }
 
-
     private Node findLeaf(Node node, Record record) throws IOException {
         if (!node.isLeaf) {
             for (Node child : node.children) {
@@ -232,5 +231,44 @@ public class RstarTree {
             }
         }
     }
+
+
+    // Queries
+
+    public List<RecordID> rangeQuery(double[] min, double[] max) throws IOException {
+        MBR queryMBR = new MBR(min, max);
+        List<RecordID> result = new ArrayList<>();
+        rangeQueryRecursive(root, queryMBR, result);
+        return result;
+    }
+
+    private void rangeQueryRecursive(Node node, MBR queryMBR, List<RecordID> result) throws IOException {
+        if (!node.nodeMBR.intersects(queryMBR)) return;
+
+        if (node.isLeaf) {
+            for (RecordID id : node.recordIDs) {
+                Record record = DataFileReader.getRecord(id);
+
+                boolean inside = true;
+                for (int i = 0; i < record.coordinates.length; i++) {
+                    if (record.coordinates[i] < queryMBR.min[i] || record.coordinates[i] > queryMBR.max[i]) {
+                        inside = false;
+                        break;
+                    }
+                }
+
+                if (inside) {
+                    result.add(id);
+                }
+            }
+        } else {
+            for (Node child : node.children) {
+                rangeQueryRecursive(child, queryMBR, result);
+            }
+        }
+    }
+
+    
+
 
 }
