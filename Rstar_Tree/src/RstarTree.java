@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
 
 public class RstarTree {
     Node root;
@@ -245,6 +246,7 @@ public class RstarTree {
 
     // Queries
 
+    // Range Query
     public List<RecordID> rangeQuery(double[] min, double[] max) throws IOException {
         MBR queryMBR = new MBR(min, max);
         List<RecordID> result = new ArrayList<>();
@@ -278,7 +280,63 @@ public class RstarTree {
         }
     }
 
-    
+    // K-NN Query
 
+    public List<RecordID> knnQuery(int k, Node node, double[] queryPoint) throws IOException {
+        if (k <= 0)
+            throw new IllegalArgumentException("Parameter 'k' must be a positive integer.");
+
+        PriorityQueue<DistanceRecord> knn = new PriorityQueue<>(k, (a, b) -> Double.compare(b.distance, a.distance));
+
+        knnSearchRecursive(node, queryPoint, k, knn);
+
+        List<RecordID> result = new ArrayList<>();
+        for (DistanceRecord entry : knn) {
+            result.add(entry.recordID);
+        }
+
+        // Sort from nearest to furthest points
+        result.sort(Comparator.comparingDouble(
+        rid -> {
+            try {
+                return calculateDistance(queryPoint, DataFileReader.getRecord(rid).coordinates);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    ));
+
+        return result;
+    }
+
+    private void knnSearchRecursive(Node node, double[] queryPoint, int k, PriorityQueue<DistanceRecord> knn) throws IOException {
+        if (node.isLeaf) {
+            for (int i = 0; i < node.recordIDs.size(); i++) {
+                RecordID rid = node.recordIDs.get(i);
+                Record record = DataFileReader.getRecord(rid);
+                double distance = calculateDistance(queryPoint, record.coordinates);
+
+                if (knn.size() < k) {
+                    knn.add(new DistanceRecord(rid, distance));
+                } else if (distance < knn.peek().distance) {
+                    knn.poll(); // remove worst
+                    knn.add(new DistanceRecord(rid, distance));
+                }
+            }
+        } else {
+            List<Node> sortedChildren = new ArrayList<>(node.children);
+            sortedChildren.sort(Comparator.comparingDouble(child -> child.nodeMBR.minDistance(queryPoint)));
+
+            for (Node child : sortedChildren) {
+                double minDist = child.nodeMBR.minDistance(queryPoint);
+                if (knn.size() == k && minDist > knn.peek().distance) {
+                    continue;
+                }
+                knnSearchRecursive(child, queryPoint, k, knn);
+            }
+        }
+    }
+
+    // Skyline Query
 
 }
