@@ -146,9 +146,10 @@ public class RstarTree {
         return Math.sqrt(sum);
     }
 
+    // Method that deletes a record from the R* Tree
     public void delete(RecordID recordID) throws IOException {
-        Record record = DataFileReader.getRecord(recordID);
-        Node leaf = findLeaf(root, record);                 
+        Record record = DataFileReader.getRecord(recordID); // Finds the record with this recordID
+        Node leaf = findLeaf(root, record);
 
         if (leaf != null) {
             boolean removed = leaf.recordIDs.remove(recordID);
@@ -165,7 +166,7 @@ public class RstarTree {
     }
 
     private Node findLeaf(Node node, Record record) throws IOException {
-        if (!node.isLeaf) {
+        if (!node.isLeaf) { // If the node is not a leaf, check for each one of the children if there is leaf
             for (Node child : node.children) {
                 if (child.nodeMBR.contains(record.coordinates)) {
                     Node leaf = findLeaf(child, record);
@@ -183,38 +184,48 @@ public class RstarTree {
         return null;
     }
 
-    private void condenseTree(Node leaf) throws IOException {
-        Node N = leaf;
-        List<Node> Q = new ArrayList<>();
+    private void condenseTree(Node node) throws IOException {
+        List<RecordID> orphanedRecords = new ArrayList<>();
+        List<Node> orphanedSubtrees = new ArrayList<>();
 
-        while (N != root) {
-            Node P = N.parent;
+        while (node != root) {
+            Node parent = node.parent;
 
-            if (N.isLeaf) {
-                if (N.recordIDs.size() < N.minRecord) {
-                    P.children.remove(N);
-                    Q.add(N);
+            if (node.isLeaf) {
+                if (node.recordIDs.size() < node.minRecord) {
+                    // If underflow, remove node from parent and collect its records.
+                    parent.children.remove(node);
+                    orphanedRecords.addAll(node.recordIDs);
                 } else {
-                    P.updateMBR();
+                    node.updateMBR();
                 }
             } else {
-                if (N.children.size() < N.minRecord) {
-                    P.children.remove(N);
-                    Q.add(N);
+                if (node.children.size() < node.minRecord) {
+                    // If underflow, remove node from parent and collect its children.
+                    parent.children.remove(node);
+                    orphanedSubtrees.addAll(node.children);
                 } else {
-                    P.updateMBR();
+                    node.updateMBR();
                 }
             }
-            N = P;
+
+            node = parent;
         }
 
+        // If root has only one child and is not a leaf, promote it
         if (!root.isLeaf && root.children.size() == 1) {
             root = root.children.get(0);
             root.parent = null;
         }
 
-        for (Node eliminatedNode : Q) {
-            reInsertSubtree(eliminatedNode);
+        // Reinsert orphaned leaf records
+        for (RecordID orphaned : orphanedRecords) {
+            insert(orphaned);
+        }
+
+        // Reinsert orphaned subtrees (from internal nodes)
+        for (Node orphanedNode : orphanedSubtrees) {
+            reInsertSubtree(orphanedNode);
         }
 
         root.updateMBR();
@@ -231,7 +242,6 @@ public class RstarTree {
             }
         }
     }
-
 
     // Queries
 
