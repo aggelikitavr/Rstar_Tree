@@ -1,3 +1,5 @@
+import java.util.List;
+
 public class MBR {
     double[] min; // Lat
     double[] max; // Lon
@@ -121,6 +123,44 @@ public class MBR {
         return Math.sqrt(sum);
     }
 
+    public double getLower(int axis) {
+        return min[axis];
+    }
+
+    public double getUpper(int axis) {
+        return max[axis];
+    }
+
+    public static MBR computeBoundingBox(List<MBR> mbrs) {
+        if (mbrs.isEmpty()) return null;
+
+        int dimensions = mbrs.get(0).min.length;
+        double[] min = new double[dimensions];
+        double[] max = new double[dimensions];
+
+        // Initialize min/max with first entry
+        for (int i = 0; i < dimensions; i++) {
+            min[i] = Double.MAX_VALUE;
+            max[i] = -Double.MAX_VALUE;
+        }
+
+        for (MBR mbr : mbrs) {
+            for (int i = 0; i < dimensions; i++) {
+                min[i] = Math.min(min[i], mbr.min[i]);
+                max[i] = Math.max(max[i], mbr.max[i]);
+            }
+        }
+
+        return new MBR(min, max);
+    }
+
+    public double margin() {
+        double m = 0.0;
+        for (int i = 0; i < min.length; i++) {
+            m += 2 * (max[i] - min[i]);
+        }
+        return m;
+    }
 
     @Override
     public String toString() {

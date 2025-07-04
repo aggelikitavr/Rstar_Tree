@@ -11,39 +11,59 @@ public class RstarTree {
     int height;
     int size;
     private static final double p = 0.3;
+    private List<Boolean> overflowTreatmentCalled;
+    private int level;
 
     public RstarTree(){
         this.root = new Node(true);
-        
+
+        overflowTreatmentCalled = new ArrayList<>();
+        overflowTreatmentCalled.add(false);
         this.height = 1;
         this.size = 0;
+        this.level = 0;
     }
 
     public void insert(RecordID recordID) throws IOException {
         Record record = DataFileReader.getRecord(recordID);
         MBR mbr = new MBR(record.coordinates, record.coordinates);
+        level = 0;
+
+        for (int i = 0; i < overflowTreatmentCalled.size(); i++) {
+            overflowTreatmentCalled.set(i, false);
+        }
         insert(root, mbr, recordID);
     }
 
-    public void insert(Node node, MBR mbr, RecordID recordID) throws IOException {
+    private void reInsert(RecordID recordID) throws IOException {
+        Record record = DataFileReader.getRecord(recordID);
+        MBR mbr = new MBR(record.coordinates, record.coordinates);
+        level = 0;
+        insert(root, mbr, recordID);
+    }
+
+    private void insert(Node node, MBR mbr, RecordID recordID) throws IOException {
         Node n = chooseLeaf(node, mbr);
+
+        if (!n.isLeaf) {
+            System.out.println("Node is not a leaf");
+        }
 
         if (!n.isFull()) {
             n.addMBR(mbr);
             n.recordIDs.add(recordID);
         } else {
-            if (node != root && !node.reInserted) {
-                reInsert(node, mbr, recordID);
-                node.reInserted = true;
+            if (n != root && overflowTreatmentCalled.get(level) == Boolean.FALSE) {
+                overflowTreatmentCalled.set(level, true);
+                reInsert(n, mbr, recordID);
             } else {
-                //split
+                split(n);
             }
 
-            node.reInserted = false;
         }
     }
 
-    private Node chooseLeaf(Node node, MBR mbr) throws IOException {
+    private Node chooseLeaf(Node node, MBR mbr) {
         if (!node.isLeaf) {
             // Find all the children with the least overlap
             List<Double> overlaps = new ArrayList<>();
@@ -74,7 +94,7 @@ public class RstarTree {
                 double minExpansion = Collections.min(expansions);
 
                 List<Integer> indexes = new ArrayList<>();
-                for (int i = 0; i < minExpansion; i++) {
+                for (int i = 0; i < expansions.size(); i++) {
                     if (expansions.get(i) == minExpansion) {
                         indexes.add(i);
                     }
@@ -92,12 +112,15 @@ public class RstarTree {
                             minAreaIndex = j;
                         }
                     }
-                    chooseLeaf(node.children.get(indexes.get(minAreaIndex)), mbr);
+                    level++;
+                    return chooseLeaf(node.children.get(indexes.get(minAreaIndex)), mbr);
                 } else {
-                    chooseLeaf(node.children.get(indexes.getFirst()), mbr);
+                    level++;
+                    return chooseLeaf(node.children.get(indexes.getFirst()), mbr);
                 }
             } else {
-                chooseLeaf(node.children.get(minOverlapIndexes.getFirst()), mbr);
+                level++;
+                return chooseLeaf(node.children.get(minOverlapIndexes.getFirst()), mbr);
             }
         }
 
@@ -123,28 +146,263 @@ public class RstarTree {
         distances.sort(Comparator.reverseOrder());
         indexes.sort((i2, i1) -> Double.compare(distances.get(i2), distances.get(i1)));
         int p_entries = (int) Math.ceil(distances.size() * p);
+        p_entries = Math.min(p_entries, node.recordIDs.size() - Node.MIN_RECORD);
+
 
         List<RecordID> recordIDs = new ArrayList<>();
         for (int i = 0; i < p_entries; i++) {
             recordIDs.add(node.removeRecord(indexes.get(i)));
         }
 
+        if (node.nodeMBR.area() == 0.0) {
+            System.out.println("Warning: Node is empty after split or reinsert!");
+        }
+
         for (int i = 0; i < p_entries; i++) {
-            insert(recordIDs.get(i));
+            reInsert(recordIDs.get(i));
         }
     }
 
-    private static double calculateDistance(double[] center, double[] point) {
-        if (center.length != point.length) {
-            throw new IllegalArgumentException("Points must have the same dimension");
+    private void split(Node node) throws IOException {
+        List<MBR> mbrs;
+        List<RecordID> records = null;
+        List<Node> children = null;
+
+        if (node.isLeaf) {
+            records = new ArrayList<>(node.recordIDs);
+            mbrs = new ArrayList<>(node.getMBRs());  // MBRs corresponding to each record
+        } else {
+            children = new ArrayList<>(node.children);
+            mbrs = new ArrayList<>();
+            for (Node child : children) {
+                mbrs.add(child.nodeMBR);
+            }
         }
 
-        double sum = 0.0;
-        for (int i = 0; i < center.length; i++) {
-            double diff = center[i] - point[i];
-            sum += diff * diff;
+
+        int bestAxis = chooseSplitAxis(mbrs);
+
+        if (node.isLeaf) {
+            sortByAxis(mbrs, records, bestAxis, true);
+        } else {
+            sortByAxis(mbrs, children, bestAxis);
         }
-        return Math.sqrt(sum);
+
+        int splitIndex = chooseSplitIndex(mbrs, Node.MIN_RECORD);
+
+
+        Node left = new Node(node.isLeaf);
+        Node right = new Node(node.isLeaf);
+
+        if (node.isLeaf) {
+            for (int i = 0; i < splitIndex; i++) {
+                left.addMBR(mbrs.get(i));
+                left.recordIDs.add(records.get(i));
+            }
+
+            for (int i = splitIndex; i < mbrs.size(); i++) {
+                right.addMBR(mbrs.get(i));
+                right.recordIDs.add(records.get(i));
+            }
+        } else {
+            for (int i = 0; i < splitIndex; i++) {
+                Node child = children.get(i);
+                left.children.add(child);
+                child.parent = left;
+            }
+            for (int i = splitIndex; i < children.size(); i++) {
+                Node child = children.get(i);
+                right.children.add(child);
+                child.parent = right;
+            }
+        }
+
+        left.updateMBR();
+        right.updateMBR();
+
+        if (node == root) {
+            root = new Node(false);
+            root.children.add(left);
+            root.children.add(right);
+
+            root.updateMBR();
+            height++;
+            overflowTreatmentCalled.add(false);
+
+            left.parent = root;
+            right.parent = root;
+        } else {
+            Node parent = node.parent;
+
+            parent.children.removeIf(child -> child == node);
+
+            parent.children.add(left);
+            parent.children.add(right);
+
+            left.parent = parent;
+            right.parent = parent;
+
+            parent.updateMBR();
+
+            if (parent.isFull()) {
+                split(parent); // recursively handle overflow
+            }
+        }
+
+        if (node.nodeMBR.area() == 0.0) {
+            System.out.println("Warning: Node is empty after split!");
+        }
+
+        if (node.isLeaf) {
+            node.recordIDs.clear();
+        } else {
+            node.children.clear();
+        }
+    }
+
+    private int chooseSplitAxis(List<MBR> mbrs) {
+        int bestAxis = -1;
+        double minSumMargin = Double.MAX_VALUE;
+
+        for (int axis = 0; axis < Record.DIMENSIONS; axis++) {
+            int finalAxis = axis;
+
+            List<MBR> byLower = new ArrayList<>(mbrs);
+            byLower.sort(Comparator.comparingDouble(m -> m.min[finalAxis]));
+
+            List<MBR> byUpper = new ArrayList<>(mbrs);
+            byUpper.sort(Comparator.comparingDouble(m -> m.max[finalAxis]));
+
+            double marginSumLower = computeTotalMargin(byLower);
+            double marginSumUpper = computeTotalMargin(byUpper);
+
+            double totalMargin = marginSumLower + marginSumUpper;
+
+            if (totalMargin < minSumMargin) {
+                minSumMargin = totalMargin;
+                bestAxis = axis;
+            }
+        }
+
+        return bestAxis;
+    }
+
+    private double computeTotalMargin(List<MBR> mbrs) {
+        int M = mbrs.size();
+        int m = Node.MIN_RECORD;
+        double total = 0.0;
+
+        for (int k = 1; k <= M - 2 * m + 1; k++) {
+            int split = m - 1 + k;
+            List<MBR> group1 = mbrs.subList(0, split);
+            List<MBR> group2 = mbrs.subList(split, M);
+
+            MBR bbox1 = MBR.computeBoundingBox(group1);
+            MBR bbox2 = MBR.computeBoundingBox(group2);
+
+            total += bbox1.margin() + bbox2.margin();
+        }
+
+        return total;
+    }
+
+    private int chooseSplitIndex(List<MBR> sorted, int m) {
+        int M = sorted.size();
+
+        double minOverlap = Double.MAX_VALUE;
+        double minArea =  Double.MAX_VALUE;
+        int bestSplitIndex = -1;
+
+        for (int k = 1; k <= M - 2 * m + 1; k++) {
+            int split = m - 1 + k;
+
+            List<MBR> group1 = sorted.subList(0, split);
+            List<MBR> group2 = sorted.subList(split, M);
+
+            MBR bbox1 = MBR.computeBoundingBox(group1);
+            MBR bbox2 = MBR.computeBoundingBox(group2);
+
+            double overlap = bbox1.overlap(bbox2);
+            double area = bbox1.area() +  bbox2.area();
+
+            if (overlap < minOverlap || (overlap == minOverlap && area < minArea)) {
+                minOverlap = overlap;
+                minArea = area;
+                bestSplitIndex = split;
+            }
+        }
+
+        return bestSplitIndex;
+    }
+
+    private void sortByAxis(List<MBR> mbrs, List<RecordID> recordIDs, int axis, boolean irrelevant) {
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < mbrs.size(); i++) indices.add(i);
+
+        indices.sort(Comparator.comparingDouble(i -> mbrs.get(i).min[axis]));
+
+        List<MBR> sortedMBRs = new ArrayList<>();
+        List<RecordID> sortedIDs = new ArrayList<>();
+
+        for (int i : indices) {
+            sortedMBRs.add(mbrs.get(i));
+            sortedIDs.add(recordIDs.get(i));
+        }
+
+        mbrs.clear();
+        mbrs.addAll(sortedMBRs);
+        recordIDs.clear();
+        recordIDs.addAll(sortedIDs);
+    }
+
+    private void sortByAxis(List<MBR> mbrs, List<Node> children, int axis) {
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < mbrs.size(); i++) indices.add(i);
+
+        indices.sort(Comparator.comparingDouble(i -> mbrs.get(i).min[axis]));
+
+        List<MBR> sortedMBRs = new ArrayList<>();
+        List<Node> sortedChildren = new ArrayList<>();
+
+        for (int i : indices) {
+            sortedMBRs.add(mbrs.get(i));
+            sortedChildren.add(children.get(i));
+        }
+
+        mbrs.clear();
+        mbrs.addAll(sortedMBRs);
+        children.clear();
+        children.addAll(sortedChildren);
+    }
+
+    public void printTree() throws IOException {
+        System.out.println("Tree details: ");
+        System.out.println("Height = " + height);
+        printNode(root, 0);
+    }
+
+    private void printNode(Node node, int depth) throws IOException {
+        String indent = "  ".repeat(depth);
+        System.out.println(indent + (node.isLeaf ? "Leaf" : "Internal") + " Node");
+
+        System.out.println(indent + "  MBR: " + node.nodeMBR); // Optional
+
+        if (node.isLeaf) {
+            for (RecordID rid : node.recordIDs) {
+                Record record = DataFileReader.getRecord(rid);
+                System.out.println(indent + "    RecordID: " + record.id);
+            }
+        } else {
+            for (Node child : node.children) {
+                printNode(child, depth + 1);
+            }
+        }
+    }
+
+    private double calculateDistance(double[] r1, double[] r2) {
+        double dx = r1[0] - r2[0];
+        double dy = r1[1] - r2[1];
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     // Method that deletes a record from the R* Tree
