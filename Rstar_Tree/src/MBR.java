@@ -99,6 +99,30 @@ public class MBR {
         return center;
     }
 
+    public double minDistance(double[] point) {
+        if (point.length != min.length) {
+            throw new IllegalArgumentException("Point dimensionality must match MBR dimensionality.");
+        }
+
+        double sum = 0.0;
+
+        for (int i = 0; i < point.length; i++) {
+            double ri;
+            if (point[i] < min[i]) {
+                ri = min[i];
+            } else if (point[i] > max[i]) {
+                ri = max[i];
+            } else {
+                ri = point[i];
+            }
+
+            double diff = point[i] - ri;
+            sum += diff * diff;
+        }
+
+        return Math.sqrt(sum);
+    }
+
     public double getLower(int axis) {
         return min[axis];
     }

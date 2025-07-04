@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
 
 public class RstarTree {
     Node root;
@@ -403,4 +404,197 @@ public class RstarTree {
         double dy = r1[1] - r2[1];
         return Math.sqrt(dx * dx + dy * dy);
     }
+
+    // Method that deletes a record from the R* Tree
+    public void delete(RecordID recordID) throws IOException {
+        Record record = DataFileReader.getRecord(recordID); // Finds the record with this recordID
+        Node leaf = findLeaf(root, record);
+
+        if (leaf != null) {
+            boolean removed = leaf.recordIDs.remove(recordID);
+
+            if (removed) {
+                leaf.updateMBR();
+                condenseTree(leaf);
+            } else {
+                System.out.println("RecordID not found in leaf.");
+            }
+        } else {
+            System.out.println("Record not found in the tree.");
+        }
+    }
+
+    private Node findLeaf(Node node, Record record) throws IOException {
+        if (!node.isLeaf) { // If the node is not a leaf, check for each one of the children if there is leaf
+            for (Node child : node.children) {
+                if (child.nodeMBR.contains(record.coordinates)) {
+                    Node leaf = findLeaf(child, record);
+                    if (leaf != null) return leaf;
+                }
+            }
+        } else {
+            for (RecordID id : node.recordIDs) {
+                    Record r = DataFileReader.getRecord(id);
+                    if (r.id == record.id) {
+                        return node;
+                    }
+            }
+        }
+        return null;
+    }
+
+    private void condenseTree(Node node) throws IOException {
+        List<RecordID> orphanedRecords = new ArrayList<>();
+        List<Node> orphanedSubtrees = new ArrayList<>();
+
+        while (node != root) {
+            Node parent = node.parent;
+
+            if (node.isLeaf) {
+                if (node.recordIDs.size() < node.minRecord) {
+                    // If underflow, remove node from parent and collect its records.
+                    parent.children.remove(node);
+                    orphanedRecords.addAll(node.recordIDs);
+                } else {
+                    node.updateMBR();
+                }
+            } else {
+                if (node.children.size() < node.minRecord) {
+                    // If underflow, remove node from parent and collect its children.
+                    parent.children.remove(node);
+                    orphanedSubtrees.addAll(node.children);
+                } else {
+                    node.updateMBR();
+                }
+            }
+
+            node = parent;
+        }
+
+        // If root has only one child and is not a leaf, promote it
+        if (!root.isLeaf && root.children.size() == 1) {
+            root = root.children.get(0);
+            root.parent = null;
+        }
+
+        // Reinsert orphaned leaf records
+        for (RecordID orphaned : orphanedRecords) {
+            insert(orphaned);
+        }
+
+        // Reinsert orphaned subtrees (from internal nodes)
+        for (Node orphanedNode : orphanedSubtrees) {
+            reInsertSubtree(orphanedNode);
+        }
+
+        root.updateMBR();
+    }
+
+    private void reInsertSubtree(Node node) throws IOException {
+        if (node.isLeaf) {
+            for (RecordID recordID : node.recordIDs) {
+                insert(recordID);
+            }
+        } else {
+            for (Node child : node.children) {
+                reInsertSubtree(child);
+            }
+        }
+    }
+
+    // Queries
+
+    // Range Query
+    public List<RecordID> rangeQuery(double[] min, double[] max) throws IOException {
+        MBR queryMBR = new MBR(min, max);
+        List<RecordID> result = new ArrayList<>();
+        rangeQueryRecursive(root, queryMBR, result);
+        return result;
+    }
+
+    private void rangeQueryRecursive(Node node, MBR queryMBR, List<RecordID> result) throws IOException {
+        if (!node.nodeMBR.intersects(queryMBR)) return;
+
+        if (node.isLeaf) {
+            for (RecordID id : node.recordIDs) {
+                Record record = DataFileReader.getRecord(id);
+
+                boolean inside = true;
+                for (int i = 0; i < record.coordinates.length; i++) {
+                    if (record.coordinates[i] < queryMBR.min[i] || record.coordinates[i] > queryMBR.max[i]) {
+                        inside = false;
+                        break;
+                    }
+                }
+
+                if (inside) {
+                    result.add(id);
+                }
+            }
+        } else {
+            for (Node child : node.children) {
+                rangeQueryRecursive(child, queryMBR, result);
+            }
+        }
+    }
+
+    // K-NN Query
+
+    public List<RecordID> knnQuery(int k, Node node, double[] queryPoint) throws IOException {
+        if (k <= 0)
+            throw new IllegalArgumentException("Parameter 'k' must be a positive integer.");
+
+        PriorityQueue<DistanceRecord> knn = new PriorityQueue<>(k, (a, b) -> Double.compare(b.distance, a.distance));
+
+        knnSearchRecursive(node, queryPoint, k, knn);
+
+        List<RecordID> result = new ArrayList<>();
+        for (DistanceRecord entry : knn) {
+            result.add(entry.recordID);
+        }
+
+        // Sort from nearest to furthest points
+        result.sort(Comparator.comparingDouble(
+        rid -> {
+            try {
+                return calculateDistance(queryPoint, DataFileReader.getRecord(rid).coordinates);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    ));
+
+        return result;
+    }
+
+    private void knnSearchRecursive(Node node, double[] queryPoint, int k, PriorityQueue<DistanceRecord> knn) throws IOException {
+        if (node.isLeaf) {
+            for (int i = 0; i < node.recordIDs.size(); i++) {
+                RecordID rid = node.recordIDs.get(i);
+                Record record = DataFileReader.getRecord(rid);
+                double distance = calculateDistance(queryPoint, record.coordinates);
+
+                if (knn.size() < k) {
+                    knn.add(new DistanceRecord(rid, distance));
+                } else if (distance < knn.peek().distance) {
+                    knn.poll(); // remove worst
+                    knn.add(new DistanceRecord(rid, distance));
+                }
+            }
+        } else {
+            List<Node> sortedChildren = new ArrayList<>(node.children);
+            sortedChildren.sort(Comparator.comparingDouble(child -> child.nodeMBR.minDistance(queryPoint)));
+
+            for (Node child : sortedChildren) {
+                double minDist = child.nodeMBR.minDistance(queryPoint);
+                if (knn.size() == k && minDist > knn.peek().distance) {
+                    continue;
+                }
+                knnSearchRecursive(child, queryPoint, k, knn);
+            }
+        }
+    }
+
+    // Skyline Query
+
 }
