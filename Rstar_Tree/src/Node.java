@@ -8,10 +8,9 @@ public class Node {
     MBR nodeMBR;
     Node parent;
     List<RecordID> recordIDs; // Only if isLeaf = True
-    boolean reInserted;
 
-    public static final int maxRecord = 50;
-    int minRecord;
+    public static final int MAX_RECORD = 50;
+    public static final int MIN_RECORD = (int) Math.ceil(0.4* MAX_RECORD);
 
     public Node(boolean isLeaf) {
         this.isLeaf = isLeaf;
@@ -22,17 +21,13 @@ public class Node {
         }
         nodeMBR = null;
         parent = null;
-
-        this.minRecord = (int) Math.ceil(0.4*maxRecord);
-
-        reInserted = false;
     }
 
     public boolean isFull() {
         if (isLeaf) {
-            return recordIDs.size() >= maxRecord;
+            return recordIDs.size() >= MAX_RECORD;
         } else {
-            return children.size() >= maxRecord;
+            return children.size() >= MAX_RECORD;
         }
     }
 
@@ -60,8 +55,13 @@ public class Node {
         }
     }
 
-    public void addMBR(MBR mbr) {
+    public void addMBR(MBR mbr) throws IOException {
+        if (nodeMBR == null) {
+            nodeMBR = mbr;
+            return;
+        }
         nodeMBR = nodeMBR.expandToInclude(mbr);
+        updateMBR();
     }
 
     public RecordID removeRecord(int index) throws IOException {
@@ -75,6 +75,15 @@ public class Node {
         return nodeMBR.overlap(mbr);
     }
 
+    public List<MBR> getMBRs() throws IOException {
+        List<MBR> mbrs = new ArrayList<>();
+        for (int i = 0; i < recordIDs.size(); i++) {
+            double[] coordinates = DataFileReader.getRecord(recordIDs.get(i)).coordinates;
+            mbrs.add(new MBR(coordinates, coordinates));
+        }
+
+        return mbrs;
+    }
 
     public double computeExpansion(MBR mbr) {
         double originalArea = nodeMBR.area();
