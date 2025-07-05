@@ -1,4 +1,6 @@
+import javax.xml.crypto.dsig.keyinfo.KeyValue;
 import java.io.IOException;
+import java.security.KeyPair;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -134,11 +136,11 @@ public class RstarTree {
                     return chooseLeaf(node.children.get(indexes.get(minAreaIndex)), mbr);
                 } else {
                     level++;
-                    return chooseLeaf(node.children.get(indexes.getFirst()), mbr);
+                    return chooseLeaf(node.children.get(indexes.get(0)), mbr);
                 }
             } else {
                 level++;
-                return chooseLeaf(node.children.get(minOverlapIndexes.getFirst()), mbr);
+                return chooseLeaf(node.children.get(minOverlapIndexes.get(0)), mbr);
             }
         }
 
@@ -148,8 +150,10 @@ public class RstarTree {
     private void reInsert(Node node, MBR mbr, RecordID recordID) throws IOException {
         node.addMBR(mbr);
         node.recordIDs.add(recordID);
+        node.updateMBR();
 
         double[] center = node.nodeMBR.getCenter();
+
 
         List<Double> distances = new ArrayList<>();
         List<Integer> indexes = new ArrayList<>();

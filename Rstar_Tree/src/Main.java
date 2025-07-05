@@ -21,6 +21,7 @@ public class Main {
             tree.insert(new RecordID(1, i));
         }
         tree.printTree();
+
     }*/
     public static void main(String[] args) throws IOException {
         List<Record> records = Arrays.asList(
