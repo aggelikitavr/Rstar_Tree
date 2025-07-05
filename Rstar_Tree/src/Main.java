@@ -102,29 +102,31 @@ public class Main {
         tree.printTree();
         RTreePlotter.plotTree(tree, "rstar_output.png", 800, 800);
 
-        RecordID cityToDelete = new RecordID(0, 2);
-        System.out.println("Deleting city with ID = " + DataFileReader.getRecord(cityToDelete).id + " and name = " + DataFileReader.getRecord(cityToDelete).name);
-        tree.delete(cityToDelete);
+        //RecordID cityToDelete = new RecordID(0, 2);
+        //System.out.println("Deleting city with ID = " + DataFileReader.getRecord(cityToDelete).id + " and name = " + DataFileReader.getRecord(cityToDelete).name);
+        //tree.delete(cityToDelete);
 
         tree.printTree();
 
-        double[] min = {20, 20};
-        double[] max = {30, 30};
-        System.out.println("Range query result in area: {" + min[0] + ", " + min[1] + "} " +
-                "{" + max[0] + ", " + max[1] + "}");
-        for (RecordID recordID : tree.rangeQuery(min, max)) {
-            System.out.println(DataFileReader.getRecord(recordID).id);
-        }
+        // double[] min = {20, 20};
+        // double[] max = {30, 30};
+        // System.out.println("Range query result in area: {" + min[0] + ", " + min[1] + "} " +
+        //         "{" + max[0] + ", " + max[1] + "}");
+        // for (RecordID recordID : tree.rangeQuery(min, max)) {
+        //     System.out.println(DataFileReader.getRecord(recordID).id);
+        // }
 
         System.out.println(" ");
 
-        int k = 5;
-        List<RecordID> queryResult = tree.knnQuery(k, new double[]{11, 20});
-        System.out.println("Knn query result with k = " + k);
-        for (RecordID recordID : queryResult) {
-            System.out.println(DataFileReader.getRecord(recordID).id);
-        }
-        queryResult.clear();
+        List<RecordID> queryResult;
+
+        // int k = 5;
+        // queryResult = tree.knnQuery(k, new double[]{11, 20});
+        // System.out.println("Knn query result with k = " + k);
+        // for (RecordID recordID : queryResult) {
+        //     System.out.println(DataFileReader.getRecord(recordID).id);
+        // }
+        // queryResult.clear();
 
         System.out.println(" ");
 
@@ -133,5 +135,16 @@ public class Main {
         for (RecordID recordID : queryResult) {
             System.out.println(DataFileReader.getRecord(recordID).id);
         }
+
+        // List<Record> allRecords = ...; // Δικά σου σημεία
+        // STRBuilder builder = new STRBuilder(allRecords);
+        // List<List<Record>> leafGroups = builder.buildLeafGroups();
+
+        // for (List<Record> group : leafGroups) {
+        //     System.out.println("Leaf Group:");
+        //     for (Record r : group) {
+        //         System.out.println("  " + r.name + " → " + Arrays.toString(r.coordinates));
+        //     }
+        // }
     }
 }

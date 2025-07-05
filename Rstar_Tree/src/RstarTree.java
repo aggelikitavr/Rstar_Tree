@@ -430,7 +430,7 @@ public class RstarTree {
         Node leaf = findLeaf(root, record);
 
         System.out.println("Node: " + leaf.nodeMBR);
-        if (leaf != null) {
+        //if (leaf != null) {
             boolean removed = leaf.recordIDs.remove(recordID);
 
             if (removed) {
@@ -440,9 +440,9 @@ public class RstarTree {
             } else {
                 System.out.println("RecordID not found in leaf.");
             }
-        } else {
-            System.out.println("Record not found in the tree.");
-        }
+        //} else {
+        //    System.out.println("Record not found in the tree.");
+        //}
     }
 
     private Node findLeaf(Node node, Record record) throws IOException {
@@ -684,5 +684,6 @@ public class RstarTree {
         }
         return false;
     }
+    
 }
 
