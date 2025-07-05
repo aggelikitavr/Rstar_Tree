@@ -426,12 +426,14 @@ public class RstarTree {
         Record record = DataFileReader.getRecord(recordID); // Finds the record with this recordID
         Node leaf = findLeaf(root, record);
 
+        System.out.println("Node: " + leaf.nodeMBR);
         if (leaf != null) {
             boolean removed = leaf.recordIDs.remove(recordID);
 
             if (removed) {
                 leaf.updateMBR();
                 condenseTree(leaf);
+                System.out.println("RecordID was deleted.");
             } else {
                 System.out.println("RecordID not found in leaf.");
             }
