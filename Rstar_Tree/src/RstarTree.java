@@ -28,20 +28,35 @@ public class RstarTree {
 
     public void insert(RecordID recordID) throws IOException {
         Record record = DataFileReader.getRecord(recordID);
+
+        if (record == null || record.id == 0) {
+            return;  // Δεν κάνουμε insert αν το record είναι άδειο/άκυρο
+        }
         MBR mbr = new MBR(record.coordinates, record.coordinates);
         level = 0;
 
         for (int i = 0; i < overflowTreatmentCalled.size(); i++) {
             overflowTreatmentCalled.set(i, false);
         }
+        System.out.println("Inserting RecordID: " + record.id);
         insert(root, mbr, recordID);
+        System.out.println("Successfully inserted RecordID: " + record.id);
     }
 
     private void reInsert(RecordID recordID) throws IOException {
         Record record = DataFileReader.getRecord(recordID);
+        
+        // TEEEEEEEEEEEEEESTTTTTTTTTTTTTTTTTTTTTTTT
+        if (record == null || record.id == 0) {
+            //System.out.println("Skipping invalid/empty record: " + recordID);
+            return;  // Δεν κάνουμε insert αν το record είναι άδειο/άκυρο
+        }
+        
         MBR mbr = new MBR(record.coordinates, record.coordinates);
         level = 0;
+        System.out.println("Re-inserting RecordID: " + record.id);
         insert(root, mbr, recordID);
+        System.out.println("Successfully re-inserted RecordID: " + record.id);
     }
 
     private void insert(Node node, MBR mbr, RecordID recordID) throws IOException {
@@ -57,11 +72,14 @@ public class RstarTree {
         } else {
             if (n != root && overflowTreatmentCalled.get(level) == Boolean.FALSE) {
                 overflowTreatmentCalled.set(level, true);
+                // 🔥 ΜΗΝ προσθέτεις εδώ! Το reInsert() θα το κάνει.
                 reInsert(n, mbr, recordID);
             } else {
+                // ⚠️ Αν είσαι εδώ, πρόσθεσε πρώτα και μετά split, αλλιώς χάνεται το record!
+                n.addMBR(mbr);
+                n.recordIDs.add(recordID);
                 split(n);
             }
-
         }
     }
 
@@ -183,7 +201,6 @@ public class RstarTree {
             }
         }
 
-
         int bestAxis = chooseSplitAxis(mbrs);
 
         if (node.isLeaf) {
@@ -193,7 +210,6 @@ public class RstarTree {
         }
 
         int splitIndex = chooseSplitIndex(mbrs, Node.MIN_RECORD);
-
 
         Node left = new Node(node.isLeaf);
         Node right = new Node(node.isLeaf);
@@ -258,10 +274,10 @@ public class RstarTree {
         }
 
         if (node.isLeaf) {
-            node.recordIDs.clear();
-        } else {
-            node.children.clear();
-        }
+                node.recordIDs.clear();
+            } else {
+                node.children.clear();
+            }
     }
 
     private int chooseSplitAxis(List<MBR> mbrs) {
@@ -287,7 +303,6 @@ public class RstarTree {
                 bestAxis = axis;
             }
         }
-
         return bestAxis;
     }
 
@@ -306,7 +321,6 @@ public class RstarTree {
 
             total += bbox1.margin() + bbox2.margin();
         }
-
         return total;
     }
 
@@ -335,7 +349,6 @@ public class RstarTree {
                 bestSplitIndex = split;
             }
         }
-
         return bestSplitIndex;
     }
 
@@ -601,5 +614,5 @@ public class RstarTree {
     }
 
     // Skyline Query
-
 }
+
