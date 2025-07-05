@@ -110,13 +110,17 @@ public class Main {
 
         double[] min = {20, 20};
         double[] max = {30, 30};
+        System.out.println("Range query result in area: {" + min[0] + ", " + min[1] + "} " +
+                "{" + max[0] + ", " + max[1] + "}");
         for (RecordID recordID : tree.rangeQuery(min, max)) {
             System.out.println(DataFileReader.getRecord(recordID).id);
         }
 
         System.out.println(" ");
 
-        List<RecordID> queryResult = tree.knnQuery(5, new double[]{11, 20});
+        int k = 5;
+        List<RecordID> queryResult = tree.knnQuery(k, new double[]{11, 20});
+        System.out.println("Knn query result with k = " + k);
         for (RecordID recordID : queryResult) {
             System.out.println(DataFileReader.getRecord(recordID).id);
         }
@@ -125,6 +129,7 @@ public class Main {
         System.out.println(" ");
 
         queryResult = tree.skylineQuery();
+        System.out.println("Skyline query result: ");
         for (RecordID recordID : queryResult) {
             System.out.println(DataFileReader.getRecord(recordID).id);
         }

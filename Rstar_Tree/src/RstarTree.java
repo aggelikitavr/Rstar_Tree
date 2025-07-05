@@ -642,7 +642,7 @@ public class RstarTree {
                 }
             } else {
                 for (Node child : node.children) {
-                    if (!isDominated(child.nodeMBR, skyline)) {
+                    if (!isCompletelyDominated(child.nodeMBR, skyline)) {
                         queue.add(child);
                     }
                 }
@@ -654,15 +654,10 @@ public class RstarTree {
 
     private boolean dominates(double[] a, double[] b) {
         boolean dominates = false;
-        int ndominates = 0;
         for (int i = 0; i < Record.DIMENSIONS; i++) {
             if (a[i] > b[i]) return false;
-
-            if (a[i] <= b[i]) dominates = true;
-            if (a[i] < b[i]) ndominates++;
+            if (a[i] < b[i]) dominates = true;
         }
-
-        if (ndominates == 0) dominates = false;
 
         return dominates;
     }
@@ -674,12 +669,13 @@ public class RstarTree {
         return false;
     }
 
-    private boolean isDominated(MBR mbr, List<RecordID> skyline) throws IOException {
+    private boolean isCompletelyDominated(MBR mbr, List<RecordID> skyline) throws IOException {
+        // Use MBR.min as a representative corner; optionally test more corners
         for (RecordID rid : skyline) {
             Record rec = DataFileReader.getRecord(rid);
             boolean dominates = true;
             for (int i = 0; i < rec.coordinates.length; i++) {
-                if (rec.coordinates[i] < mbr.min[i]) {
+                if (rec.coordinates[i] > mbr.min[i]) {
                     dominates = false;
                     break;
                 }
@@ -687,19 +683,6 @@ public class RstarTree {
             if (dominates) return true;
         }
         return false;
-    }
-
-
-    private List<RecordID> getAllRecordIDs(Node node) throws IOException {
-        List<RecordID> ids = new ArrayList<>();
-        if (node.isLeaf) {
-            ids.addAll(node.recordIDs);
-        } else {
-            for (Node child : node.children) {
-                ids.addAll(getAllRecordIDs(child));
-            }
-        }
-        return ids;
     }
 }
 
