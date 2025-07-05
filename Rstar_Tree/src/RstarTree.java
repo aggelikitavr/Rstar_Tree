@@ -70,11 +70,14 @@ public class RstarTree {
         } else {
             if (n != root && overflowTreatmentCalled.get(level) == Boolean.FALSE) {
                 overflowTreatmentCalled.set(level, true);
+                // 🔥 ΜΗΝ προσθέτεις εδώ! Το reInsert() θα το κάνει.
                 reInsert(n, mbr, recordID);
             } else {
+                // ⚠️ Αν είσαι εδώ, πρόσθεσε πρώτα και μετά split, αλλιώς χάνεται το record!
+                n.addMBR(mbr);
+                n.recordIDs.add(recordID);
                 split(n);
             }
-
         }
     }
 
