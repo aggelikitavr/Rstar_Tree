@@ -19,6 +19,6 @@ public class Main {
         for (int i = 0;  i < reader.getRecordCountForBlock(1); i++) {
             tree.insert(new RecordID(1, i));
         }
-        //tree.printTree();
+        tree.printTree();
     }
 }

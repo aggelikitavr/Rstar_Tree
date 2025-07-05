@@ -1,4 +1,6 @@
+import javax.xml.crypto.dsig.keyinfo.KeyValue;
 import java.io.IOException;
+import java.security.KeyPair;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -116,11 +118,11 @@ public class RstarTree {
                     return chooseLeaf(node.children.get(indexes.get(minAreaIndex)), mbr);
                 } else {
                     level++;
-                    return chooseLeaf(node.children.get(indexes.getFirst()), mbr);
+                    return chooseLeaf(node.children.get(indexes.get(0)), mbr);
                 }
             } else {
                 level++;
-                return chooseLeaf(node.children.get(minOverlapIndexes.getFirst()), mbr);
+                return chooseLeaf(node.children.get(minOverlapIndexes.get(0)), mbr);
             }
         }
 
@@ -130,8 +132,10 @@ public class RstarTree {
     private void reInsert(Node node, MBR mbr, RecordID recordID) throws IOException {
         node.addMBR(mbr);
         node.recordIDs.add(recordID);
+        node.updateMBR();
 
         double[] center = node.nodeMBR.getCenter();
+
 
         List<Double> distances = new ArrayList<>();
         List<Integer> indexes = new ArrayList<>();
@@ -451,7 +455,7 @@ public class RstarTree {
             Node parent = node.parent;
 
             if (node.isLeaf) {
-                if (node.recordIDs.size() < node.minRecord) {
+                if (node.recordIDs.size() < Node.MIN_RECORD) {
                     // If underflow, remove node from parent and collect its records.
                     parent.children.remove(node);
                     orphanedRecords.addAll(node.recordIDs);
@@ -459,7 +463,7 @@ public class RstarTree {
                     node.updateMBR();
                 }
             } else {
-                if (node.children.size() < node.minRecord) {
+                if (node.children.size() < Node.MIN_RECORD) {
                     // If underflow, remove node from parent and collect its children.
                     parent.children.remove(node);
                     orphanedSubtrees.addAll(node.children);
