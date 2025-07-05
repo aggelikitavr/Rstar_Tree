@@ -4,7 +4,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        realData();
+        citiesData();
     }
 
     public static void realData() throws IOException {
@@ -107,5 +107,26 @@ public class Main {
         tree.delete(cityToDelete);
 
         tree.printTree();
+
+        double[] min = {20, 20};
+        double[] max = {30, 30};
+        for (RecordID recordID : tree.rangeQuery(min, max)) {
+            System.out.println(DataFileReader.getRecord(recordID).id);
+        }
+
+        System.out.println(" ");
+
+        List<RecordID> queryResult = tree.knnQuery(5, new double[]{11, 20});
+        for (RecordID recordID : queryResult) {
+            System.out.println(DataFileReader.getRecord(recordID).id);
+        }
+        queryResult.clear();
+
+        System.out.println(" ");
+
+        queryResult = tree.skylineQuery();
+        for (RecordID recordID : queryResult) {
+            System.out.println(DataFileReader.getRecord(recordID).id);
+        }
     }
 }

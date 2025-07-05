@@ -162,6 +162,12 @@ public class MBR {
         return m;
     }
 
+    public double minCoordSum() {
+        double sum = 0;
+        for (double v : min) sum += v;
+        return sum;
+    }
+
     @Override
     public String toString() {
         return "MBR{" + "min=" + java.util.Arrays.toString(min) +

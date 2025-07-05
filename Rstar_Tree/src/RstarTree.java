@@ -416,9 +416,12 @@ public class RstarTree {
     }
 
     private double calculateDistance(double[] r1, double[] r2) {
-        double dx = r1[0] - r2[0];
-        double dy = r1[1] - r2[1];
-        return Math.sqrt(dx * dx + dy * dy);
+        double sum = 0;
+        for (int i = 0; i < r1.length; i++) {
+            double d = r1[i] - r2[i];
+            sum += d * d;
+        }
+        return Math.sqrt(sum);
     }
 
     // Method that deletes a record from the R* Tree
@@ -538,7 +541,7 @@ public class RstarTree {
                 Record record = DataFileReader.getRecord(id);
 
                 boolean inside = true;
-                for (int i = 0; i < record.coordinates.length; i++) {
+                for (int i = 0; i < Record.DIMENSIONS; i++) {
                     if (record.coordinates[i] < queryMBR.min[i] || record.coordinates[i] > queryMBR.max[i]) {
                         inside = false;
                         break;
@@ -558,13 +561,13 @@ public class RstarTree {
 
     // K-NN Query
 
-    public List<RecordID> knnQuery(int k, Node node, double[] queryPoint) throws IOException {
+    public List<RecordID> knnQuery(int k, double[] queryPoint) throws IOException {
         if (k <= 0)
             throw new IllegalArgumentException("Parameter 'k' must be a positive integer.");
 
         PriorityQueue<DistanceRecord> knn = new PriorityQueue<>(k, (a, b) -> Double.compare(b.distance, a.distance));
 
-        knnSearchRecursive(node, queryPoint, k, knn);
+        knnSearchRecursive(root, queryPoint, k, knn);
 
         List<RecordID> result = new ArrayList<>();
         for (DistanceRecord entry : knn) {
@@ -614,5 +617,89 @@ public class RstarTree {
     }
 
     // Skyline Query
+    public List<RecordID> skylineQuery() throws IOException {
+        List<RecordID> skyline = new ArrayList<>();
+        PriorityQueue<Node> queue = new PriorityQueue<>(Comparator.comparingDouble(n -> n.nodeMBR.minCoordSum()));
+        queue.add(root);
+
+        while (!queue.isEmpty()) {
+            Node node = queue.poll();
+
+            if (node.isLeaf) {
+                for (int i = 0; i < node.recordIDs.size(); i++) {
+                    RecordID rid = node.recordIDs.get(i);
+                    Record rec = DataFileReader.getRecord(rid);
+                    if (!isDominated(rid, skyline)) {
+                        skyline.removeIf(other -> {
+                            try {
+                                return dominates(rec.coordinates, DataFileReader.getRecord(other).coordinates);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+                        skyline.add(rid);
+                    }
+                }
+            } else {
+                for (Node child : node.children) {
+                    if (!isDominated(child.nodeMBR, skyline)) {
+                        queue.add(child);
+                    }
+                }
+            }
+        }
+
+        return skyline;
+    }
+
+    private boolean dominates(double[] a, double[] b) {
+        boolean dominates = false;
+        int ndominates = 0;
+        for (int i = 0; i < Record.DIMENSIONS; i++) {
+            if (a[i] > b[i]) return false;
+
+            if (a[i] <= b[i]) dominates = true;
+            if (a[i] < b[i]) ndominates++;
+        }
+
+        if (ndominates == 0) dominates = false;
+
+        return dominates;
+    }
+
+    private boolean isDominated(RecordID rec, List<RecordID> skyline) throws IOException {
+        for (RecordID other : skyline) {
+            if (dominates(DataFileReader.getRecord(other).coordinates, DataFileReader.getRecord(rec).coordinates)) return true;
+        }
+        return false;
+    }
+
+    private boolean isDominated(MBR mbr, List<RecordID> skyline) throws IOException {
+        for (RecordID rid : skyline) {
+            Record rec = DataFileReader.getRecord(rid);
+            boolean dominates = true;
+            for (int i = 0; i < rec.coordinates.length; i++) {
+                if (rec.coordinates[i] < mbr.min[i]) {
+                    dominates = false;
+                    break;
+                }
+            }
+            if (dominates) return true;
+        }
+        return false;
+    }
+
+
+    private List<RecordID> getAllRecordIDs(Node node) throws IOException {
+        List<RecordID> ids = new ArrayList<>();
+        if (node.isLeaf) {
+            ids.addAll(node.recordIDs);
+        } else {
+            for (Node child : node.children) {
+                ids.addAll(getAllRecordIDs(child));
+            }
+        }
+        return ids;
+    }
 }
 
