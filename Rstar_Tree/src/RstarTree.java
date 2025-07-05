@@ -387,7 +387,8 @@ public class RstarTree {
 
     private void printNode(Node node, int depth) throws IOException {
         String indent = "  ".repeat(depth);
-        System.out.println(indent + (node.isLeaf ? "Leaf" : "Internal") + " Node");
+        if (node == root) System.out.println(indent + "Root" + " Node");
+        else System.out.println(indent + (node.isLeaf ? "Leaf" : "Internal") + " Node");
 
         System.out.println(indent + "  MBR: " + node.nodeMBR); // Optional
 
