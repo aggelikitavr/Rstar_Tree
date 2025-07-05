@@ -89,7 +89,8 @@ public class Main {
             }
         }
 
-        System.out.println("------------------------------------------------");
+        System.out.println("----------------------------------------");
         tree.printTree();
+        RTreePlotter.plotTree(tree, "rstar_output.png", 800, 800);
     }
 }

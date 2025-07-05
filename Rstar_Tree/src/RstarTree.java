@@ -606,6 +606,5 @@ public class RstarTree {
     }
 
     // Skyline Query
-
 }
 
