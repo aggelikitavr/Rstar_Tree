@@ -126,9 +126,7 @@ public class RstarTree {
         for (int i = 0; i < overflowTreatmentCalled.size(); i++) {
             overflowTreatmentCalled.set(i, false);
         }
-        System.out.println("Inserting RecordID: " + record.id);
         insert(root, mbr, recordID);
-        System.out.println("Successfully inserted RecordID: " + record.id);
     }
 
     // This re-insert method is being used to re-insert an individual record and not called when OverflowTreament is necessary
@@ -141,9 +139,7 @@ public class RstarTree {
         
         MBR mbr = new MBR(record.coordinates, record.coordinates);
         level = 0;
-        System.out.println("Re-inserting RecordID: " + record.id);
         insert(root, mbr, recordID);
-        System.out.println("Successfully re-inserted RecordID: " + record.id);
     }
 
     private void insert(Node node, MBR mbr, RecordID recordID) throws IOException {

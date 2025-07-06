@@ -37,7 +37,6 @@ public class DataFileWriter {
 
     // Packs a record into the Buffer as bytes
     private static void writeRecordToBuffer(Record record, ByteBuffer bb) {
-        System.out.println("Writing ID: " + record.id);
         bb.putLong(record.id);
 
         byte[] nameBytes = new byte[Record.NAME_SIZE];
