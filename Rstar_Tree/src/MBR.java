@@ -168,6 +168,26 @@ public class MBR {
         return sum;
     }
 
+    public static MBR fromRecords(List<Record> records) {
+        if (records.isEmpty()) return null;
+
+        MBR mbr = new MBR(records.get(0).coordinates, records.get(0).coordinates);
+        for (int i = 1; i < records.size(); i++) {
+            mbr = mbr.expandToInclude(records.get(i));
+        }
+        return mbr;
+    }
+
+    public static MBR fromNodes(List<Node> nodes) {
+    if (nodes.isEmpty()) return null;
+
+    MBR mbr = nodes.get(0).nodeMBR;
+    for (int i = 1; i < nodes.size(); i++) {
+        mbr = mbr.expandToInclude(nodes.get(i).nodeMBR);
+    }
+    return mbr;
+}
+
     @Override
     public String toString() {
         return "MBR{" + "min=" + java.util.Arrays.toString(min) +

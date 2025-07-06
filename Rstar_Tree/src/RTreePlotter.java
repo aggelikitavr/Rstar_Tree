@@ -48,7 +48,6 @@ public class RTreePlotter {
         }
     }
 
-
     private static void drawMBR(Graphics2D g, MBR mbr, int width, int height) {
         double minX = mbr.getLower(0);
         double minY = mbr.getLower(1);
