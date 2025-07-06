@@ -9,7 +9,7 @@ public class Node {
     Node parent;
     List<RecordID> recordIDs; // Only if isLeaf = True
 
-    public static final int MAX_RECORD = 4;
+    public static final int MAX_RECORD = 20;
     public static final int MIN_RECORD = (int) Math.ceil(0.4* MAX_RECORD);
 
     public Node(boolean isLeaf) {

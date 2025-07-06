@@ -10,21 +10,21 @@ public class RstarTree {
     Node root;
 
     int height;
-    int size;
-    private static final double p = 0.3;
+    private static final double p = 0.3; // How many records are going to be removed in the reinsert (30%)
     private List<Boolean> overflowTreatmentCalled;
     private int level;
 
+    // Constructs a tree from scratch
     public RstarTree(){
         this.root = new Node(true);
 
         overflowTreatmentCalled = new ArrayList<>();
         overflowTreatmentCalled.add(false);
         this.height = 1;
-        this.size = 0;
         this.level = 0;
     }
 
+    // Constructs the tree from the index file
     public RstarTree(String filename) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(filename));
         String line;
@@ -116,8 +116,9 @@ public class RstarTree {
     public void insert(RecordID recordID) throws IOException {
         Record record = DataFileReader.getRecord(recordID);
 
+        // Check for empty records
         if (record == null || record.id == 0) {
-            return;  // Δεν κάνουμε insert αν το record είναι άδειο/άκυρο
+            return;
         }
         MBR mbr = new MBR(record.coordinates, record.coordinates);
         level = 0;
@@ -130,13 +131,12 @@ public class RstarTree {
         System.out.println("Successfully inserted RecordID: " + record.id);
     }
 
+    // This re-insert method is being used to re-insert an individual record and not called when OverflowTreament is necessary
     private void reInsert(RecordID recordID) throws IOException {
         Record record = DataFileReader.getRecord(recordID);
         
-        // TEEEEEEEEEEEEEESTTTTTTTTTTTTTTTTTTTTTTTT
         if (record == null || record.id == 0) {
-            //System.out.println("Skipping invalid/empty record: " + recordID);
-            return;  // Δεν κάνουμε insert αν το record είναι άδειο/άκυρο
+            return;
         }
         
         MBR mbr = new MBR(record.coordinates, record.coordinates);
@@ -147,22 +147,23 @@ public class RstarTree {
     }
 
     private void insert(Node node, MBR mbr, RecordID recordID) throws IOException {
+        // Find a suitable leaf to assign this record
         Node n = chooseLeaf(node, mbr);
 
+        // Check for errors
         if (!n.isLeaf) {
             System.out.println("Node is not a leaf");
         }
 
+        // If the leaf is full then call reInsert before calling split
         if (!n.isFull()) {
             n.addMBR(mbr);
             n.recordIDs.add(recordID);
         } else {
             if (n != root && overflowTreatmentCalled.get(level) == Boolean.FALSE) {
                 overflowTreatmentCalled.set(level, true);
-                // 🔥 ΜΗΝ προσθέτεις εδώ! Το reInsert() θα το κάνει.
                 reInsert(n, mbr, recordID);
             } else {
-                // ⚠️ Αν είσαι εδώ, πρόσθεσε πρώτα και μετά split, αλλιώς χάνεται το record!
                 n.addMBR(mbr);
                 n.recordIDs.add(recordID);
                 split(n);
@@ -170,6 +171,7 @@ public class RstarTree {
         }
     }
 
+    // Recursive function that will return a leaf based on minimum overlap first, minimum expansion second and third minimum area
     private Node chooseLeaf(Node node, MBR mbr) {
         if (!node.isLeaf) {
             // Find all the children with the least overlap
@@ -234,13 +236,16 @@ public class RstarTree {
         return node;
     }
 
+    // This reInsert method is being called before we split a node to see if a better adjustment of the records can be made among
+    // the leaves
     private void reInsert(Node node, MBR mbr, RecordID recordID) throws IOException {
+        // Add the new record to the node first
         node.addMBR(mbr);
         node.recordIDs.add(recordID);
         node.updateMBR();
 
+        // Get the center of the mbr and calculate the distances of each record in the node from the center
         double[] center = node.nodeMBR.getCenter();
-
 
         List<Double> distances = new ArrayList<>();
         List<Integer> indexes = new ArrayList<>();
@@ -252,26 +257,27 @@ public class RstarTree {
             indexes.add(i);
         }
 
+        // Sort the distances in reverse order
         distances.sort(Comparator.reverseOrder());
         indexes.sort((i2, i1) -> Double.compare(distances.get(i2), distances.get(i1)));
+
+
+        // Get the p first records and remove them from the node
         int p_entries = (int) Math.ceil(distances.size() * p);
         p_entries = Math.min(p_entries, node.recordIDs.size() - Node.MIN_RECORD);
-
 
         List<RecordID> recordIDs = new ArrayList<>();
         for (int i = 0; i < p_entries; i++) {
             recordIDs.add(node.removeRecord(indexes.get(i)));
         }
 
-        if (node.nodeMBR.area() == 0.0) {
-            System.out.println("Warning: Node is empty after split or reinsert!");
-        }
-
+        // Insert each of the remove records in the tree
         for (int i = 0; i < p_entries; i++) {
             reInsert(recordIDs.get(i));
         }
     }
 
+    // Split a node in two (left and right nodes) and assigning the initial records to them based on the best axis and index
     private void split(Node node) throws IOException {
         List<MBR> mbrs;
         List<RecordID> records = null;

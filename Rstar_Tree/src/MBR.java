@@ -1,8 +1,8 @@
 import java.util.List;
 
 public class MBR {
-    double[] min; // Lat
-    double[] max; // Lon
+    double[] min; // Lowest point
+    double[] max; // Highest point
 
     public MBR(double[] min, double[] max) {
         if (min.length != max.length) {
@@ -33,10 +33,6 @@ public class MBR {
     return true;
     }
 
-    public boolean contains(Record record) {
-        return contains(record.coordinates);
-    }
-
     public double area() {
         double areaProduct = 1.0;
         for (int i = 0; i < min.length; i++) {
@@ -62,6 +58,7 @@ public class MBR {
         return overlapProduct;
     }
 
+    // Expands the current MBR to include the other
     public MBR expandToInclude(MBR other) {
         double[] newMin = new double[min.length];
         double[] newMax = new double[max.length];
@@ -91,6 +88,7 @@ public class MBR {
         return expandToInclude(record.coordinates);
     }
 
+    // Returns the center of the MBR
     public double[] getCenter () {
         double[] center = new double[min.length];
         for (int i = 0; i < min.length; i++) {

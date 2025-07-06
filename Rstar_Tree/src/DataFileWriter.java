@@ -8,17 +8,18 @@ import java.util.List;
 public class DataFileWriter {
     public static final int BLOCK_SIZE = 32 * 1024;
 
+    // Write the records into a file
     public static void writeToFile(List<Record> records, String filename) throws IOException {
         try(FileOutputStream fos = new FileOutputStream(filename);
              BufferedOutputStream bos = new BufferedOutputStream(fos)) {
 
+            // Use a buffer to write the records into bytes
             ByteBuffer bb = ByteBuffer.allocate(BLOCK_SIZE);
             int count = 0;
 
             for (Record record : records) {
                 if (bb.remaining() < Record.RECORD_SIZE) {
                     bos.write(bb.array());
-                    //bb.clear();
                     bb = ByteBuffer.allocate(BLOCK_SIZE); // Δημιουργία νέου, καθαρού buffer
                 }
 
@@ -34,7 +35,7 @@ public class DataFileWriter {
         }
     }
 
-    // Packs a record into the Buffer
+    // Packs a record into the Buffer as bytes
     private static void writeRecordToBuffer(Record record, ByteBuffer bb) {
         System.out.println("Writing ID: " + record.id);
         bb.putLong(record.id);

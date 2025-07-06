@@ -1,11 +1,9 @@
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        realData();
+        timers();
     }
 
     public static void realData() throws IOException {
@@ -165,4 +163,150 @@ public class Main {
         System.out.println("------------------------------------------");
         tree.printTree();
     }
+
+    public static void timers() throws IOException {
+        // Parse all the data from the file to the DataFileWriter to store them
+        OSMParser parser = new OSMParser();
+        parser.parseToRecords("map.osm");
+
+        DataFileWriter.writeToFile(parser.getRecords(), "datafile.bin");
+        DataFileReader reader = new DataFileReader("datafile.bin");
+
+        ArrayList<RecordID> recordIDs = new ArrayList<>();
+
+        // Individual insert
+        long startTime = System.nanoTime();
+        RstarTree tree = new RstarTree();
+        for (int block = 0;  block < reader.getTotalBlocks(); block++) {
+            for (int slot = 0;  slot < reader.getRecordCountForBlock(block); slot++) {
+                tree.insert(new RecordID(block, slot));
+                recordIDs.add(new RecordID(block, slot));
+
+            }
+        }
+        long endTime = System.nanoTime();
+        System.out.println("Time to build the tree with individual inserts: " + (endTime - startTime) / 1000000.0 + "ms");
+
+        tree.updateTreeInFile("tree.txt");
+
+
+        // Bottom-up build
+        startTime = System.nanoTime();
+        BottomUpConstruction builder = new BottomUpConstruction(recordIDs);
+        List<List<RecordID>> groups = builder.sortTileRecursive();
+        List<Node> leafNodes = builder.createLeafNodes(groups);
+        Node root = builder.buildRStarTree(leafNodes);
+        endTime = System.nanoTime();
+        System.out.println("Time to build the tree with Bottom-up: " +  (endTime - startTime) / 1000000.0 + "ms");
+
+        List<RecordID> queryResult;
+
+        // Tree Range Query
+        startTime = System.nanoTime();
+        double[] min = {20, 20};
+        double[] max = {70, 70};
+//        System.out.println("Range query result in area: {" + min[0] + ", " + min[1] + "} " +
+//                "{" + max[0] + ", " + max[1] + "}");
+//        queryResult = tree.rangeQuery(min, max);
+//        for (RecordID recordID : queryResult) {
+//            System.out.println(DataFileReader.getRecord(recordID).id);
+//        }
+        endTime = System.nanoTime();
+        System.out.println("Time for range query: " + (endTime - startTime) / 1000000.0 + "ms");
+
+        // Serial Range Query
+        startTime  = System.nanoTime();
+        MBR mbr = new MBR(min, max);
+        queryResult = serialRangeQuery(mbr, recordIDs);
+//        for (RecordID recordID : queryResult) {
+//            System.out.println(DataFileReader.getRecord(recordID).id);
+//        }
+        endTime = System.nanoTime();
+        System.out.println("Time for serial range query: " + (endTime - startTime) / 1000000.0 + "ms");
+
+
+        // Tree k-nn Query with k = 5
+        double[] queryPoint =  {42, 25};
+        startTime = System.nanoTime();
+        int k = 5;
+        queryResult = tree.knnQuery(k, queryPoint);
+//        System.out.println("Knn query result with k = " + k);
+//        for (RecordID recordID : queryResult) {
+//            System.out.println(DataFileReader.getRecord(recordID).id);
+//        }
+        queryResult.clear();
+        endTime = System.nanoTime();
+        System.out.println("Time for k-nn query with k =  " + k + ": " + (endTime - startTime) / 1000000.0 + "ms");
+
+        // Tree k-nn Query with k = 40
+        startTime = System.nanoTime();
+        k = 40;
+        queryResult = tree.knnQuery(k, queryPoint);
+        queryResult.clear();
+        endTime = System.nanoTime();
+        System.out.println("Time for k-nn query with k = " + k + ": " + (endTime - startTime) / 1000000.0 + "ms");
+
+        // Serial k-nn query with k = 40
+        startTime  = System.nanoTime();
+        queryResult = serialKNearestNeighbors(queryPoint, recordIDs, k);
+//        for (RecordID recordID : queryResult) {
+//            System.out.println(DataFileReader.getRecord(recordID).id);
+//        }
+        endTime = System.nanoTime();
+        System.out.println("Time for serial k-nn query with k = " +  k + ": " + (endTime - startTime) / 1000000.0 + "ms");
+
+        // Tree Skyleine Query
+        startTime = System.nanoTime();
+        queryResult = tree.skylineQuery();
+//        System.out.println("Skyline query result: ");
+//        for (RecordID recordID : queryResult) {
+//            System.out.println(DataFileReader.getRecord(recordID).id);
+//        }
+        endTime = System.nanoTime();
+        System.out.println("Time for skyline query: " + (endTime - startTime) / 1000000.0 + "ms");
+    }
+
+    public static List<RecordID> serialRangeQuery(MBR query, List<RecordID> ids) throws IOException {
+        List<RecordID> results = new ArrayList<>();
+        for (RecordID rid : ids) {
+            Record rec = DataFileReader.getRecord(rid);
+            if (query.contains(rec.coordinates)) {
+                results.add(rid);
+            }
+        }
+        return results;
+    }
+
+    public static List<RecordID> serialKNearestNeighbors(double[] query, List<RecordID> ids, int k) throws IOException {
+        List<RecordID> allRecords = new ArrayList<>();
+
+        for (RecordID rid : ids) {
+            Record rec = DataFileReader.getRecord(rid);
+            allRecords.add(rid);
+        }
+
+        // Sort the records by distance to the query point
+        allRecords.sort(Comparator.comparingDouble(r -> {
+            try {
+                return euclidean(query, DataFileReader.getRecord(r).coordinates);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }));
+
+        // Return the first k (or fewer if not enough records)
+        return allRecords.subList(0, Math.min(k, allRecords.size()));
+    }
+
+
+    private static double euclidean(double[] a, double[] b) {
+        double sum = 0;
+        for (int i = 0; i < a.length; i++) {
+            double diff = a[i] - b[i];
+            sum += diff * diff;
+        }
+        return Math.sqrt(sum);
+    }
+
+
 }
