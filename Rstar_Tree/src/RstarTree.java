@@ -79,6 +79,7 @@ public class RstarTree {
                     MBR mbr = new MBR(coordinates, coordinates);
 
                     Node node = stack.peek().node;
+                    if (node.recordIDs == null) node.recordIDs = new ArrayList<>();
                     node.recordIDs.add(recordID);
                     node.addMBR(mbr);
                     node.isLeaf = true;
