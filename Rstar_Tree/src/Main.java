@@ -76,6 +76,8 @@ public class Main {
         }
         endTime = System.nanoTime();
         System.out.println("Time for skyline query: " + (endTime - startTime) / 1000000.0 + "ms");
+
+        RTreePlotter.plotTree(tree, "rstar_output.png", 800, 800);
     }
 
     public static void runRangeQuery(double[] min, double[] max, RstarTree tree, List<RecordID> ids,  boolean isTree) throws IOException {
