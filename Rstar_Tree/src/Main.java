@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -136,15 +137,28 @@ public class Main {
             System.out.println(DataFileReader.getRecord(recordID).id);
         }
 
-        // List<Record> allRecords = ...; // Δικά σου σημεία
-        // STRBuilder builder = new STRBuilder(allRecords);
-        // List<List<Record>> leafGroups = builder.buildLeafGroups();
+        ArrayList<RecordID> recordIDs = new ArrayList<>();
+        for (int blockNum = 0; blockNum < reader.getTotalBlocks(); blockNum++) {
+            for (int i = 0; i < reader.getRecordCountForBlock(blockNum); i++) {
+                recordIDs.add(new RecordID(blockNum, i));
+            }
+        }
 
-        // for (List<Record> group : leafGroups) {
-        //     System.out.println("Leaf Group:");
-        //     for (Record r : group) {
-        //         System.out.println("  " + r.name + " → " + Arrays.toString(r.coordinates));
-        //     }
-        // }
+        // 2. Φτιάξε τον constructor
+        BottomUpConstruction builder = new BottomUpConstruction(recordIDs);
+
+        // 3. Εφάρμοσε Sort-Tile-Recursive
+        List<List<RecordID>> groups = builder.sortTileRecursive();
+
+        // 4. Δημιούργησε φύλλα
+        List<Node> leafNodes = builder.createLeafNodes(groups);
+
+        // 5. Χτίσε το R*-Tree
+        Node root = builder.buildRStarTree(leafNodes);
+
+        // 6. (Προαιρετικό) Εκτύπωσε τη ρίζα ή πληροφορίες
+        System.out.println("R*-Tree root MBR: " + root.nodeMBR);
+        System.out.println("------------------------------------------");
+        tree.printTree();
     }
 }
