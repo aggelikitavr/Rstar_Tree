@@ -4,7 +4,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        citiesData();
+        realData();
     }
 
     public static void realData() throws IOException {
@@ -25,10 +25,10 @@ public class Main {
             tree.insert(new RecordID(1, i));
         }
         tree.printTree();
+        tree.updateTreeInFile("tree.txt");
 
-        tree.delete(new  RecordID(0, 0));
-
-        tree.printTree();
+        RstarTree newTree = new RstarTree("tree.txt");
+        newTree.printTree();
     }
 
     public static void citiesData() throws IOException {
@@ -107,6 +107,10 @@ public class Main {
         tree.delete(cityToDelete);
 
         tree.printTree();
+        tree.updateTreeInFile("tree.txt");
+
+        RstarTree tree2 = new RstarTree("tree.txt");
+        tree2.printTree();
 
         double[] min = {20, 20};
         double[] max = {30, 30};
