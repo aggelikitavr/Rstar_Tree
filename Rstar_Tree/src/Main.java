@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -102,9 +103,9 @@ public class Main {
         tree.printTree();
         RTreePlotter.plotTree(tree, "rstar_output.png", 800, 800);
 
-        RecordID cityToDelete = new RecordID(0, 2);
-        System.out.println("Deleting city with ID = " + DataFileReader.getRecord(cityToDelete).id + " and name = " + DataFileReader.getRecord(cityToDelete).name);
-        tree.delete(cityToDelete);
+        //RecordID cityToDelete = new RecordID(0, 2);
+        //System.out.println("Deleting city with ID = " + DataFileReader.getRecord(cityToDelete).id + " and name = " + DataFileReader.getRecord(cityToDelete).name);
+        //tree.delete(cityToDelete);
 
         tree.printTree();
         tree.updateTreeInFile("tree.txt");
@@ -112,23 +113,25 @@ public class Main {
         RstarTree tree2 = new RstarTree("tree.txt");
         tree2.printTree();
 
-        double[] min = {20, 20};
-        double[] max = {30, 30};
-        System.out.println("Range query result in area: {" + min[0] + ", " + min[1] + "} " +
-                "{" + max[0] + ", " + max[1] + "}");
-        for (RecordID recordID : tree.rangeQuery(min, max)) {
-            System.out.println(DataFileReader.getRecord(recordID).id);
-        }
+        // double[] min = {20, 20};
+        // double[] max = {30, 30};
+        // System.out.println("Range query result in area: {" + min[0] + ", " + min[1] + "} " +
+        //         "{" + max[0] + ", " + max[1] + "}");
+        // for (RecordID recordID : tree.rangeQuery(min, max)) {
+        //     System.out.println(DataFileReader.getRecord(recordID).id);
+        // }
 
         System.out.println(" ");
 
-        int k = 5;
-        List<RecordID> queryResult = tree.knnQuery(k, new double[]{11, 20});
-        System.out.println("Knn query result with k = " + k);
-        for (RecordID recordID : queryResult) {
-            System.out.println(DataFileReader.getRecord(recordID).id);
-        }
-        queryResult.clear();
+        List<RecordID> queryResult;
+
+        // int k = 5;
+        // queryResult = tree.knnQuery(k, new double[]{11, 20});
+        // System.out.println("Knn query result with k = " + k);
+        // for (RecordID recordID : queryResult) {
+        //     System.out.println(DataFileReader.getRecord(recordID).id);
+        // }
+        // queryResult.clear();
 
         System.out.println(" ");
 
@@ -137,5 +140,29 @@ public class Main {
         for (RecordID recordID : queryResult) {
             System.out.println(DataFileReader.getRecord(recordID).id);
         }
+
+        ArrayList<RecordID> recordIDs = new ArrayList<>();
+        for (int blockNum = 0; blockNum < reader.getTotalBlocks(); blockNum++) {
+            for (int i = 0; i < reader.getRecordCountForBlock(blockNum); i++) {
+                recordIDs.add(new RecordID(blockNum, i));
+            }
+        }
+
+        // 2. Φτιάξε τον constructor
+        BottomUpConstruction builder = new BottomUpConstruction(recordIDs);
+
+        // 3. Εφάρμοσε Sort-Tile-Recursive
+        List<List<RecordID>> groups = builder.sortTileRecursive();
+
+        // 4. Δημιούργησε φύλλα
+        List<Node> leafNodes = builder.createLeafNodes(groups);
+
+        // 5. Χτίσε το R*-Tree
+        Node root = builder.buildRStarTree(leafNodes);
+
+        // 6. (Προαιρετικό) Εκτύπωσε τη ρίζα ή πληροφορίες
+        System.out.println("R*-Tree root MBR: " + root.nodeMBR);
+        System.out.println("------------------------------------------");
+        tree.printTree();
     }
 }
