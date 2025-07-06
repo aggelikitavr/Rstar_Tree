@@ -63,7 +63,6 @@ It extends the classic R-Tree with techniques aimed at reducing **overlap** and 
 ## 🛠 Technologies Used
 
 - Language: **Java**
-- Visualization: **Java 2D Graphics**
 - Dataset: **OpenStreetMap-based real coordinates**
 
 ---
