@@ -1,9 +1,10 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.PriorityQueue;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class RstarTree {
     Node root;
@@ -22,6 +23,93 @@ public class RstarTree {
         this.height = 1;
         this.size = 0;
         this.level = 0;
+    }
+
+    public RstarTree(String filename) throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader(filename));
+        String line;
+        Stack<NodeWrapper> stack = new Stack<>();
+
+        // Get the height
+        line = br.readLine();
+        if (line != null && line.startsWith("Height:")) {
+            height = Integer.parseInt(line.substring("Height:".length()).trim());
+        } else {
+            throw new IOException("Expected Height line at top of file.");
+        }
+
+        // Check every line with 4 possible results:
+        // - Root
+        // - Node[isLeaf=
+        // - Record
+        // - Child --> In this situation we just want to continue reading
+        while ((line = br.readLine()) != null) {
+            int indent = countIndentation(line);
+            line = line.trim();
+
+            if (line.equals("Root")) {
+                Node root = new Node(false);
+                this.root = root;
+
+                stack.push(new NodeWrapper(root, indent));
+
+            } else if (line.startsWith("Node[isLeaf=")) {
+                boolean isLeaf = line.contains("true");
+                Node node = new Node(isLeaf);
+
+                while (!stack.isEmpty() && stack.peek().indent >= indent) {
+                    stack.pop();
+                }
+
+                if (!stack.isEmpty()) {
+                    Node parent = stack.peek().node;
+                    parent.children.add(node);
+                }
+
+                stack.push(new NodeWrapper(node, indent));
+            } else if (line.startsWith("Record")) {
+                Matcher matcher = Pattern.compile("blockID=(\\d+), slotID=(\\d+)").matcher(line);
+
+                if (matcher.find()) {
+                    int blockID = Integer.parseInt(matcher.group(1));
+                    int slotID = Integer.parseInt(matcher.group(2));
+
+                    RecordID recordID = new RecordID(blockID, slotID);
+                    double[] coordinates = DataFileReader.getRecord(recordID).coordinates;
+                    MBR mbr = new MBR(coordinates, coordinates);
+
+                    Node node = stack.peek().node;
+                    node.recordIDs.add(recordID);
+                    node.addMBR(mbr);
+                    node.isLeaf = true;
+                }
+            }
+        }
+
+        updateAllMBRs();
+        br.close();
+    }
+
+    private int countIndentation(String line) {
+        int count = 0;
+        while (count < line.length() && line.charAt(count) == ' ') {
+            count++;
+        }
+
+        return count;
+    }
+
+    public void updateAllMBRs() throws IOException {
+        updateMBRsRecursive(this.root);
+    }
+
+    private void updateMBRsRecursive(Node node) throws IOException {
+        if (!node.isLeaf) {
+            for (Node child : node.children) {
+                updateMBRsRecursive(child); // update child first
+            }
+        }
+        node.updateMBR(); // then update current node
     }
 
     public void insert(RecordID recordID) throws IOException {
@@ -684,6 +772,32 @@ public class RstarTree {
         }
         return false;
     }
-    
+
+    // Write tree to an index file
+    public void updateTreeInFile(String filename) throws IOException {
+        try (FileWriter writer = new FileWriter(filename)) {
+            writer.write("Height: " + this.height + "\n");
+            writeNodeRecursive(writer, root, 0);
+            writeNodeRecursive(writer, root, 0);
+        }
+    }
+
+    private void writeNodeRecursive(FileWriter writer, Node node, int indent) throws IOException {
+        String prefix = "  ".repeat(indent);
+        if (node == root) writer.write(prefix + "Root\n");
+        else writer.write(prefix + "Node[isLeaf=" + node.isLeaf + "]\n");
+
+        if (node.isLeaf) {
+            for (int i = 0; i < node.recordIDs.size(); i++) {
+                RecordID rid = node.recordIDs.get(i);
+                writer.write(prefix + "  Record: blockID=" + rid.blockID + ", slotID=" + rid.slotID + "\n");
+            }
+        } else {
+            for (int i = 0; i < node.children.size(); i++) {
+                writer.write(prefix + "  Child:\n");
+                writeNodeRecursive(writer, node.children.get(i), indent + 2);
+            }
+        }
+    }
 }
 
