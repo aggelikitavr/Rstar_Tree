@@ -73,7 +73,7 @@ Feel free to reach out if you have questions or suggestions!
 
 ---
 
-📄 License
+## 📄 License
 This repository is intended for academic use only.
 Do not copy or reuse without permission.
 
